@@ -67,4 +67,3 @@ defmodule Mix.Tasks.Test.Locomotion do
     [mode: mode]
   end
 end
-

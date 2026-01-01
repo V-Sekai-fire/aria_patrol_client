@@ -78,4 +78,3 @@ defmodule Mix.Tasks.Patrol.Run do
     end
   end
 end
-

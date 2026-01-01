@@ -473,9 +473,8 @@ defmodule SpatialNodeStoreClient.SimulationClient do
   end
 
   defp do_connect(state) do
-    try do
-      client_pid = self()
-      connection_ref = make_ref()
+    client_pid = self()
+    connection_ref = make_ref()
 
       # Create connection function for ENet
       connect_fun = fn peer_info ->
@@ -506,60 +505,63 @@ defmodule SpatialNodeStoreClient.SimulationClient do
       client_options = [peer_limit: 100, channel_limit: @default_channel_count]
 
       # Start ENet DTLS host
-      case EnetCore.start_dtls_host(0, connect_fun, client_options) do
+      case Enet.start_dtls_host(0, connect_fun, client_options) do
         {:ok, host_port} ->
           Logger.info("ENet client host started on port #{host_port}")
 
           # Connect to server
-          case EnetCore.connect_peer(
+          case Enet.connect_peer(
                  host_port,
                  state.server_host,
                  state.server_port,
                  @default_channel_count
                ) do
             {:ok, peer_pid} ->
-              # Wait for connection and channels from connect_fun
-              case wait_for_connection_with_channels(connection_ref, @connection_timeout_ms) do
-                {:ok, meta_game_channel, simulation_channel} ->
-                  Logger.info("Connected to server at #{state.server_host}:#{state.server_port}")
-
-                  {:ok,
-                   %{
-                     state
-                     | state: :connected,
-                       enet_host: host_port,
-                       peer_pid: peer_pid,
-                       meta_game_channel: meta_game_channel,
-                       simulation_channel: simulation_channel
-                   }}
-
-                {:error, reason} ->
-                  EnetCore.disconnect_peer(peer_pid)
-                  EnetCore.stop_host(host_port)
-                  {:error, reason}
-              end
+              handle_peer_connection(connection_ref, peer_pid, host_port, state)
 
             {:error, reason} ->
-              EnetCore.stop_host(host_port)
+              Enet.stop_host(host_port)
               {:error, {:connect_failed, reason}}
           end
 
         {:error, reason} ->
           {:error, {:host_start_failed, reason}}
       end
-    rescue
-      e ->
-        {:error, {:exception, e}}
+  rescue
+    e ->
+      {:error, {:exception, e}}
+  end
+
+  defp handle_peer_connection(connection_ref, peer_pid, host_port, state) do
+    # Wait for connection and channels from connect_fun
+    case wait_for_connection_with_channels(connection_ref, @connection_timeout_ms) do
+      {:ok, meta_game_channel, simulation_channel} ->
+        Logger.info("Connected to server at #{state.server_host}:#{state.server_port}")
+
+        {:ok,
+         %{
+           state
+           | state: :connected,
+             enet_host: host_port,
+             peer_pid: peer_pid,
+             meta_game_channel: meta_game_channel,
+             simulation_channel: simulation_channel
+         }}
+
+      {:error, reason} ->
+        Enet.disconnect_peer(peer_pid)
+        Enet.stop_host(host_port)
+        {:error, reason}
     end
   end
 
   defp do_disconnect(state) do
     if state.enet_host do
       if state.peer_pid do
-        EnetCore.disconnect_peer(state.peer_pid)
+        Enet.disconnect_peer(state.peer_pid)
       end
 
-      EnetCore.stop_host(state.enet_host)
+      Enet.stop_host(state.enet_host)
     end
 
     %{
@@ -633,7 +635,7 @@ defmodule SpatialNodeStoreClient.SimulationClient do
   defp send_meta_game_packet(state, packet) do
     if state.meta_game_channel do
       packet_binary = :erlang.term_to_binary(packet)
-      EnetCore.send_reliable(state.meta_game_channel, packet_binary)
+      Enet.send_reliable(state.meta_game_channel, packet_binary)
       :ok
     else
       {:error, :not_connected}
@@ -643,7 +645,7 @@ defmodule SpatialNodeStoreClient.SimulationClient do
   defp send_simulation_packet(state, packet) do
     if state.simulation_channel do
       packet_binary = :erlang.term_to_binary(packet)
-      EnetCore.send_unreliable(state.simulation_channel, packet_binary)
+      Enet.send_unreliable(state.simulation_channel, packet_binary)
       :ok
     else
       {:error, :not_connected}
@@ -732,4 +734,3 @@ defmodule SpatialNodeStoreClient.SimulationClient do
     end
   end
 end
-

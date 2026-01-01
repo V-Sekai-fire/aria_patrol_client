@@ -12,7 +12,6 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   use GenServer
   require Logger
 
-  alias AriaPatrolSolver.Solver
   alias SpatialNodeStoreClient.SimulationClient
 
   # Latency constraints: 10-30ms from event time (constrained by speed of light + processing)
@@ -20,7 +19,6 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   @max_latency_ms 30  # Maximum allowed latency (30ms)
   @min_latency_ms 10  # Minimum latency (10ms, speed of light + processing)
   @default_update_rate_ms 16  # 64 Hz - within latency budget
-  @default_entity_speed 2.0  # Units per second - adjusted to stay within latency window
 
   defstruct [
     :client_pid,
@@ -76,7 +74,7 @@ defmodule AriaPatrolSolverClient.PatrolClient do
     server_port = Keyword.get(opts, :server_port, 7777)
     entity_id = Keyword.get(opts, :entity_id, "patrol_entity_1")
     node_path = Keyword.get(opts, :node_path, "/root/patrol_entity")
-    
+
     # Support both custom waypoints and auto-generation
     custom_waypoints = Keyword.get(opts, :waypoints)
     num_waypoints = Keyword.get(opts, :num_waypoints, 5)
@@ -87,14 +85,14 @@ defmodule AriaPatrolSolverClient.PatrolClient do
     update_interval =
       cond do
         update_interval_raw > @max_latency_ms ->
-          Logger.warn(
+          Logger.warning(
             "Update interval #{update_interval_raw}ms exceeds max latency #{@max_latency_ms}ms. " <>
               "Clamping to #{@max_latency_ms}ms"
           )
           @max_latency_ms
 
         update_interval_raw < @min_latency_ms ->
-          Logger.warn(
+          Logger.warning(
             "Update interval #{update_interval_raw}ms is below min latency #{@min_latency_ms}ms. " <>
               "Clamping to #{@min_latency_ms}ms"
           )
@@ -117,7 +115,7 @@ defmodule AriaPatrolSolverClient.PatrolClient do
         Logger.info("Patrol client connected to server at #{server_host}:#{server_port}")
 
         # Get waypoints: use custom if provided, otherwise generate
-        waypoints = 
+        waypoints =
           if custom_waypoints do
             Logger.info("Using custom waypoints: #{length(custom_waypoints)} waypoints")
             custom_waypoints
@@ -127,7 +125,7 @@ defmodule AriaPatrolSolverClient.PatrolClient do
           end
 
         # Plan patrol route using aria_patrol_solver if enabled
-        patrol_plan = 
+        patrol_plan =
           if use_solver and length(waypoints) > 1 do
             Logger.info("Planning optimal patrol route using aria_patrol_solver...")
             plan_patrol_route(waypoints)
@@ -164,22 +162,22 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   @impl true
   def handle_cast(:start_patrol, state) do
     Logger.info("Starting patrol for entity #{state.entity_id}")
-    
+
     # Use planned waypoints if available, otherwise use original waypoints
-    waypoints_to_use = 
+    waypoints_to_use =
       if state.patrol_plan && state.patrol_plan.waypoints do
         Logger.info("Using optimized patrol route (total distance: #{:erlang.float_to_binary(state.patrol_plan.total_distance, decimals: 2)})")
         state.patrol_plan.waypoints
       else
         state.waypoints
       end
-    
+
     # Get first waypoint
     target = List.first(waypoints_to_use)
-    
+
     # Schedule first movement
     schedule_movement(state.update_interval)
-    
+
     updated_state = %{
       state
       | state: :patrolling,
@@ -189,7 +187,7 @@ defmodule AriaPatrolSolverClient.PatrolClient do
         last_waypoint_index: -1,
         completed_cycles: 0
     }
-    
+
     {:noreply, updated_state}
   end
 
@@ -207,40 +205,33 @@ defmodule AriaPatrolSolverClient.PatrolClient do
         # Move to next waypoint
         next_index = rem(state.current_waypoint_index + 1, length(state.waypoints))
         target = Enum.at(state.waypoints, next_index)
-        
+
         send_movement_intent(state, target)
-        
+
         updated_state = %{state |
           target_position: target,
           current_waypoint_index: next_index
         }
-        
+
         schedule_movement(state.update_interval)
         {:noreply, updated_state}
 
       target ->
         # Check if we've reached the target (simple distance check)
         distance = calculate_distance(state.current_position, target)
-        
+
         if distance < 0.5 do
           # Reached waypoint, move to next
           next_index = rem(state.current_waypoint_index + 1, length(state.waypoints))
           next_target = Enum.at(state.waypoints, next_index)
-          
-          # Check if we completed a cycle (reached waypoint 0 after visiting all waypoints)
-          # Cycle is complete when we reach waypoint 0 and the last waypoint was the final one
-          total_waypoints = length(state.waypoints)
-          completed_cycle =
-            if next_index == 0 and state.current_waypoint_index == total_waypoints - 1 do
-              state.completed_cycles + 1
-            else
-              state.completed_cycles
-            end
-          
+
+          # Check if we completed a cycle
+          completed_cycle = calculate_completed_cycles(state, next_index)
+
           Logger.debug("Reached waypoint #{state.current_waypoint_index}, moving to #{next_index} (cycles: #{completed_cycle})")
-          
+
           send_movement_intent(state, next_target)
-          
+
           updated_state = %{
             state
             | current_position: target,
@@ -249,16 +240,16 @@ defmodule AriaPatrolSolverClient.PatrolClient do
               last_waypoint_index: state.current_waypoint_index,
               completed_cycles: completed_cycle
           }
-          
+
           schedule_movement(state.update_interval)
           {:noreply, updated_state}
         else
           # Continue moving toward target
           send_movement_intent(state, target)
-          
+
           # Update position (simulated - real position comes from server)
           new_position = interpolate_position(state.current_position, target, 0.1)
-          
+
           schedule_movement(state.update_interval)
           {:noreply, %{state | current_position: new_position}}
         end
@@ -324,50 +315,28 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   defp plan_patrol_route(waypoints) do
     # Use aria_patrol_solver to plan optimal patrol route
     # This creates a plan that visits all waypoints optimally
-    
-    try do
-      # Convert waypoints to format expected by solver
-      # The solver expects waypoints as a list of {x, y, z} tuples
-      
-      # Create initial state with waypoints
-      initial_state = %{
-        waypoints: waypoints,
-        current_position: List.first(waypoints) || {0.0, 0.0, 0.0},
-        visited_waypoints: []
-      }
-      
+
       # Use solver to plan route (simplified - actual solver integration would be more complex)
-      # For now, we'll use the solver to determine optimal order
-      Logger.info("Planning route for #{length(waypoints)} waypoints")
-      
-      # If solver is available, use it to optimize waypoint order
-      # Otherwise, use waypoints in provided order
-      case plan_optimal_order(waypoints) do
-        {:ok, ordered_waypoints} ->
-          Logger.info("✓ Optimal route planned: #{length(ordered_waypoints)} waypoints")
-          %{
-            waypoints: ordered_waypoints,
-            plan_type: :optimized,
-            total_distance: calculate_total_distance(ordered_waypoints)
-          }
-        
-        {:error, reason} ->
-          Logger.warn("Could not optimize route: #{inspect(reason)}, using original order")
-          %{
-            waypoints: waypoints,
-            plan_type: :original,
-            total_distance: calculate_total_distance(waypoints)
-          }
-      end
-    rescue
-      e ->
-        Logger.warn("Error planning route: #{inspect(e)}, using original waypoints")
-        %{
-          waypoints: waypoints,
-          plan_type: :original,
-          total_distance: calculate_total_distance(waypoints)
-        }
-    end
+    # For now, we'll use the solver to determine optimal order
+    Logger.info("Planning route for #{length(waypoints)} waypoints")
+
+    # If solver is available, use it to optimize waypoint order
+    # Otherwise, use waypoints in provided order
+    {:ok, ordered_waypoints} = plan_optimal_order(waypoints)
+    Logger.info("✓ Optimal route planned: #{length(ordered_waypoints)} waypoints")
+    %{
+      waypoints: ordered_waypoints,
+      plan_type: :optimized,
+      total_distance: calculate_total_distance(ordered_waypoints)
+    }
+  rescue
+    e ->
+      Logger.warning("Error planning route: #{inspect(e)}, using original waypoints")
+      %{
+        waypoints: waypoints,
+        plan_type: :original,
+        total_distance: calculate_total_distance(waypoints)
+      }
   end
 
   defp plan_optimal_order(waypoints) when length(waypoints) <= 1 do
@@ -377,32 +346,36 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   defp plan_optimal_order(waypoints) do
     # Simple nearest-neighbor heuristic for TSP (Traveling Salesman Problem)
     # This finds a good (but not necessarily optimal) order
-    
+
     start = List.first(waypoints)
     remaining = Enum.drop(waypoints, 1)
     ordered = [start]
-    
-    ordered_waypoints = 
+
+    ordered_waypoints =
       Enum.reduce(remaining, {ordered, remaining}, fn _, {acc, remaining} ->
-        if Enum.empty?(remaining) do
-          {acc, []}
-        else
-          # Find nearest unvisited waypoint
-          last = List.last(acc)
-          {nearest, nearest_index} = 
-            remaining
-            |> Enum.with_index()
-            |> Enum.min_by(fn {waypoint, _} -> 
-              calculate_distance(last, waypoint)
-            end)
-          
-          new_remaining = List.delete_at(remaining, nearest_index)
-          {acc ++ [nearest], new_remaining}
-        end
+        find_next_waypoint(acc, remaining)
       end)
       |> elem(0)
-    
+
     {:ok, ordered_waypoints}
+  end
+
+  defp find_next_waypoint(acc, remaining) do
+    if Enum.empty?(remaining) do
+      {acc, []}
+    else
+      # Find nearest unvisited waypoint
+      last = List.last(acc)
+      {nearest, nearest_index} =
+        remaining
+        |> Enum.with_index()
+        |> Enum.min_by(fn {waypoint, _} ->
+          calculate_distance(last, waypoint)
+        end)
+
+      new_remaining = List.delete_at(remaining, nearest_index)
+      {acc ++ [nearest], new_remaining}
+    end
   end
 
   defp calculate_total_distance(waypoints) when length(waypoints) <= 1 do
@@ -419,12 +392,12 @@ defmodule AriaPatrolSolverClient.PatrolClient do
 
   defp send_movement_intent(state, target_position) do
     {x, y, z} = target_position
-    
+
     transform = %{
       origin: %{x: x, y: y, z: z},
       rotation: %{x: 0.0, y: 0.0, z: 0.0, w: 1.0}  # Identity quaternion
     }
-    
+
     # Send as player intent (uses prediction and rollback)
     SimulationClient.send_player_intent(
       state.client_pid,
@@ -446,9 +419,9 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   defp interpolate_position(from, to, step) do
     {x1, y1, z1} = from
     {x2, y2, z2} = to
-    
+
     distance = calculate_distance(from, to)
-    
+
     if distance < step do
       to
     else
@@ -464,5 +437,14 @@ defmodule AriaPatrolSolverClient.PatrolClient do
   defp schedule_movement(interval) do
     Process.send_after(self(), :move_to_waypoint, interval)
   end
-end
 
+  defp calculate_completed_cycles(state, next_index) do
+    # Cycle is complete when we reach waypoint 0 and the last waypoint was the final one
+    total_waypoints = length(state.waypoints)
+    if next_index == 0 and state.current_waypoint_index == total_waypoints - 1 do
+      state.completed_cycles + 1
+    else
+      state.completed_cycles
+    end
+  end
+end

@@ -105,4 +105,3 @@ defmodule SpatialNodeStoreClient.IntentBuffer do
     delta_ms / 1000.0  # Convert to seconds
   end
 end
-

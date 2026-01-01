@@ -28,4 +28,3 @@ defmodule AriaPatrolSolverClient.PatrolClientSupervisor do
     )
   end
 end
-

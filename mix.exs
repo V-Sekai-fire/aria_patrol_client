@@ -21,14 +21,16 @@ defmodule AriaPatrolSolverClient.MixProject do
   defp deps do
     [
       # ENet DTLS client for network communication
-      {:enet_core, git: "https://github.com/V-Sekai-fire/elixir-enet.git", branch: "main"},
+      {:enet, git: "https://github.com/V-Sekai-fire/elixir-enet.git", branch: "main"},
       # Process registry
       {:gproc, git: "https://github.com/uwiger/gproc.git", branch: "master", override: true},
       # Use aria_patrol_solver for planning
       {:aria_patrol_solver,
        git: "https://github.com/V-Sekai-fire/aria-patrol-solver.git", ref: "2fa9e22"},
       # JSON encoding for trajectory export
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      # Code analysis
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 end

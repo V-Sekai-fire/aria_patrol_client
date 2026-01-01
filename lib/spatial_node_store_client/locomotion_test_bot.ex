@@ -188,4 +188,3 @@ defmodule SpatialNodeStoreClient.LocomotionTestBot do
     {:reply, state.test_results, state}
   end
 end
-

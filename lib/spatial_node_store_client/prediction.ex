@@ -171,4 +171,3 @@ defmodule SpatialNodeStoreClient.Prediction do
     end
   end
 end
-
