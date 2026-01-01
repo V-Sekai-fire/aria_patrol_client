@@ -1,0 +1,12 @@
+(define (problem test_import_plan)
+  (:domain :locomotion)
+
+  (:aria-plan
+    :id "019b7b69-83a7-7046-8920-e202c37d403e"
+    :name "test_import_plan"
+    :persona-id "test_persona"
+    :domain-type :locomotion
+    :execution-status :planned
+    :success-probability 0.0
+  )
+)

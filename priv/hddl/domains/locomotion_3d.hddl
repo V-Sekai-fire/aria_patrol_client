@@ -1,0 +1,180 @@
+(define (domain locomotion_3d)
+  (:requirements :strips :typing :temporal :hierarchical)
+
+  (:aria-domain-metadata
+    :name "locomotion_3d"
+    :description "3D Locomotion planning domain with Fibonacci sphere quantization"
+    :domain-type navigation
+    :version 1
+    :state active
+  )
+
+  (:predicates
+    (quantized_position ?entity ?position_index)
+    (quantized_rotation ?entity ?rotation_index)
+    (entity_speed ?entity ?speed)
+    (movement_type ?entity ?type)
+    (waypoint_reached ?entity ?waypoint)
+  )
+
+  (:durative-action a_move_to
+    :parameters (?entity ?target_position_index)
+    :duration (= ?duration 1.0)
+    :condition (and
+      (quantized_position ?entity ?current_pos)
+      (not (= ?current_pos ?target_position_index))
+      (entity_speed ?entity ?speed)
+      (> ?speed 0)
+      (movement_type ?entity ?type)
+      (or (= ?type walking) (= ?type running) (= ?type flying) (= ?type swimming))
+    )
+    :effect (and
+      (not (quantized_position ?entity ?current_pos))
+      (quantized_position ?entity ?target_position_index)
+    )
+    :aria-temporal-metadata (
+      :duration "PT1S"
+    )
+  )
+
+  (:durative-action a_rotate_to
+    :parameters (?entity ?target_rotation_index)
+    :duration (= ?duration 0.5)
+    :condition (and
+      (quantized_rotation ?entity ?current_rot)
+      (not (= ?current_rot ?target_rotation_index))
+    )
+    :effect (and
+      (not (quantized_rotation ?entity ?current_rot))
+      (quantized_rotation ?entity ?target_rotation_index)
+    )
+    :aria-temporal-metadata (
+      :duration "PT0.5S"
+    )
+  )
+
+  (:durative-action a_move_and_rotate
+    :parameters (?entity ?position_index ?rotation_index)
+    :duration (= ?duration 1.0)
+    :condition (and
+      (or
+        (quantized_position ?entity ?current_pos)
+        (quantized_rotation ?entity ?current_rot)
+      )
+      (entity_speed ?entity ?speed)
+      (> ?speed 0)
+      (movement_type ?entity ?type)
+      (or (= ?type walking) (= ?type running) (= ?type flying) (= ?type swimming))
+    )
+    :effect (and
+      (not (quantized_position ?entity ?current_pos))
+      (quantized_position ?entity ?position_index)
+      (not (quantized_rotation ?entity ?current_rot))
+      (quantized_rotation ?entity ?rotation_index)
+    )
+    :aria-temporal-metadata (
+      :duration "PT1S"
+    )
+  )
+
+  (:command c_mark_waypoint_reached
+    :parameters (?entity ?waypoint)
+    :precondition (and
+      (quantized_position ?entity ?pos)
+    )
+    :effect (and
+      (waypoint_reached ?entity ?waypoint)
+    )
+  )
+
+  (:method m_navigate_to
+    :parameters (?entity ?waypoint)
+    :task (t_navigate_to ?entity ?waypoint)
+    :subtasks (and
+      (t_global_pathfind ?entity ?target_pos)
+      (c_rotate_to ?entity ?target_rot)
+      (c_mark_waypoint_reached ?entity ?waypoint)
+    )
+  )
+
+  (:method m_navigate_path
+    :parameters (?entity ?waypoint_seq)
+    :task (t_navigate_path ?entity ?waypoint_seq)
+    :ordered-subtasks (and
+      (t_navigate_to ?entity ?first_waypoint)
+      (t_navigate_path ?entity ?remaining_waypoints)
+    )
+  )
+
+  (:method m_navigate_path_empty
+    :parameters (?entity)
+    :task (t_navigate_path ?entity ())
+    :subtasks ()
+  )
+
+  (:method m_patrol
+    :parameters (?entity ?waypoint_seq)
+    :task (t_patrol ?entity ?waypoint_seq)
+    :subtasks (and
+      (t_navigate_path ?entity ?waypoint_seq)
+      (t_return_to_start ?entity ?start_pos)
+    )
+  )
+
+  (:method m_return_to_start
+    :parameters (?entity ?start_pos)
+    :task (t_return_to_start ?entity ?start_pos)
+    :subtasks (and
+      (t_global_pathfind ?entity ?start_pos)
+    )
+  )
+
+  (:method m_global_pathfind
+    :parameters (?entity ?target_pos)
+    :task (t_global_pathfind ?entity ?target_pos)
+    :subtasks (and
+      (t_follow_path ?entity ?path_indices ?target_pos)
+    )
+  )
+
+  (:method m_follow_path
+    :parameters (?entity ?path_indices ?final_target)
+    :task (t_follow_path ?entity ?path_indices ?final_target)
+    :ordered-subtasks (and
+      (a_move_to ?entity ?next_pos)
+      (t_follow_path ?entity ?remaining_path ?final_target)
+    )
+  )
+
+  (:method m_follow_path_final
+    :parameters (?entity ?final_target)
+    :task (t_follow_path ?entity () ?final_target)
+    :subtasks (and
+      (a_move_to ?entity ?final_target)
+    )
+  )
+
+  (:multigoal-method m_navigate_to_goal
+    :parameters (?entity ?waypoint)
+    :multigoal (t_navigate_to ?entity ?waypoint)
+    :subtasks (and
+      (t_navigate_to ?entity ?waypoint)
+    )
+  )
+
+  (:multigoal-method m_navigate_path_goal
+    :parameters (?entity ?waypoint_seq)
+    :multigoal (t_navigate_path ?entity ?waypoint_seq)
+    :subtasks (and
+      (t_navigate_path ?entity ?waypoint_seq)
+    )
+  )
+
+  (:multigoal-method m_patrol_goal
+    :parameters (?entity ?waypoint_seq)
+    :multigoal (t_patrol ?entity ?waypoint_seq)
+    :subtasks (and
+      (t_patrol ?entity ?waypoint_seq)
+    )
+  )
+)

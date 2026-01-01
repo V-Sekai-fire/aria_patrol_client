@@ -1,0 +1,589 @@
+{
+  "domain": {
+    "id": "019b7bfc-5b74-753a-b1ee-1270a5b45f8e",
+    "name": "locomotion_3d",
+    "version": 1,
+    "state": "active",
+    "description": "3D Locomotion planning domain with Fibonacci sphere quantization",
+    "metadata": {
+      "name": "locomotion_3d"
+    },
+    "commands": [
+      {
+        "id": "019b7bfc-5b74-7026-b434-8d6402d2b6d9",
+        "name": "c_mark_waypoint_reached",
+        "effect": [
+          "and",
+          [
+            [
+              "identifier",
+              "waypoint_reached"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?waypoint"
+            ]
+          ]
+        ],
+        "parameters": [
+          "?entity",
+          "?waypoint"
+        ],
+        "duration": null,
+        "precondition": [
+          "and",
+          [
+            [
+              "identifier",
+              "quantized_position"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?pos"
+            ]
+          ]
+        ],
+        "temporal_metadata": null
+      }
+    ],
+    "domain_type": "navigation",
+    "entities": [],
+    "tasks": [],
+    "actions": [
+      {
+        "id": "019b7bfc-5b74-79e6-9c24-c1c8f542ef15",
+        "name": "a_move_to",
+        "effect": [
+          "and",
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "quantized_position"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_pos"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "quantized_position"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?target_position_index"
+            ]
+          ]
+        ],
+        "parameters": [
+          "?entity",
+          "?target_position_index"
+        ],
+        "duration": [
+          "=",
+          "?duration",
+          1.0
+        ],
+        "precondition": [
+          "and",
+          [
+            [
+              "identifier",
+              "quantized_position"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?current_pos"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?current_pos"
+              ],
+              [
+                "variable",
+                "?target_position_index"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "entity_speed"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?speed"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              ">"
+            ],
+            [
+              "variable",
+              "?speed"
+            ],
+            [
+              "number",
+              0
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "movement_type"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?type"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "or"
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "walking"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "running"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "flying"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "swimming"
+              ]
+            ]
+          ]
+        ],
+        "temporal_metadata": {
+          "duration": "PT1S",
+          "requires_entities": [],
+          "end_time": null,
+          "start_time": null
+        }
+      },
+      {
+        "id": "019b7bfc-5b74-789b-b0e0-60349564df37",
+        "name": "a_rotate_to",
+        "effect": [
+          "and",
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "quantized_rotation"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_rot"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "quantized_rotation"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?target_rotation_index"
+            ]
+          ]
+        ],
+        "parameters": [
+          "?entity",
+          "?target_rotation_index"
+        ],
+        "duration": [
+          "=",
+          "?duration",
+          0.5
+        ],
+        "precondition": [
+          "and",
+          [
+            [
+              "identifier",
+              "quantized_rotation"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?current_rot"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?current_rot"
+              ],
+              [
+                "variable",
+                "?target_rotation_index"
+              ]
+            ]
+          ]
+        ],
+        "temporal_metadata": {
+          "duration": "PT0.5S",
+          "requires_entities": [],
+          "end_time": null,
+          "start_time": null
+        }
+      },
+      {
+        "id": "019b7bfc-5b74-7b02-9be5-2da1ce488653",
+        "name": "a_move_and_rotate",
+        "effect": [
+          "and",
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "quantized_position"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_pos"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "quantized_position"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?position_index"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "not"
+            ],
+            [
+              [
+                "identifier",
+                "quantized_rotation"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_rot"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "quantized_rotation"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?rotation_index"
+            ]
+          ]
+        ],
+        "parameters": [
+          "?entity",
+          "?position_index",
+          "?rotation_index"
+        ],
+        "duration": [
+          "=",
+          "?duration",
+          1.0
+        ],
+        "precondition": [
+          "and",
+          [
+            [
+              "identifier",
+              "or"
+            ],
+            [
+              [
+                "identifier",
+                "quantized_position"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_pos"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "quantized_rotation"
+              ],
+              [
+                "variable",
+                "?entity"
+              ],
+              [
+                "variable",
+                "?current_rot"
+              ]
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "entity_speed"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?speed"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              ">"
+            ],
+            [
+              "variable",
+              "?speed"
+            ],
+            [
+              "number",
+              0
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "movement_type"
+            ],
+            [
+              "variable",
+              "?entity"
+            ],
+            [
+              "variable",
+              "?type"
+            ]
+          ],
+          [
+            [
+              "identifier",
+              "or"
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "walking"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "running"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "flying"
+              ]
+            ],
+            [
+              [
+                "identifier",
+                "="
+              ],
+              [
+                "variable",
+                "?type"
+              ],
+              [
+                "identifier",
+                "swimming"
+              ]
+            ]
+          ]
+        ],
+        "temporal_metadata": {
+          "duration": "PT1S",
+          "requires_entities": [],
+          "end_time": null,
+          "start_time": null
+        }
+      }
+    ],
+    "multigoals": []
+  },
+  "domain_name": "locomotion_3d",
+  "domain_path": "/Users/ernest.lee/Desktop/aria_patrol_client/priv/hddl/domains/locomotion_3d.hddl",
+  "generated_at": "2026-01-01T23:54:54.708539Z"
+}

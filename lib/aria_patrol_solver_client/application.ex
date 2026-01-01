@@ -6,7 +6,8 @@ defmodule AriaPatrolSolverClient.Application do
 
   def start(_type, _args) do
     # Ensure required applications are started
-    {:ok, _} = Application.ensure_all_started(:spatial_node_store_client)
+    {:ok, _} = Application.ensure_all_started(:enet)
+    {:ok, _} = Application.ensure_all_started(:gproc)
 
     children = [
       # Start the patrol client supervisor
