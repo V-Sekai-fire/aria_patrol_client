@@ -20,9 +20,10 @@ defmodule AriaPatrolSolverClient.MixProject do
 
   defp deps do
     [
-      # Use the spatial_node_store_client from the umbrella app
-      # Path relative to thirdparty/aria_patrol_solver_client/
-      {:spatial_node_store_client, path: "../../apps/spatial_node_store_client"},
+      # ENet DTLS client for network communication
+      {:enet_core, git: "https://github.com/V-Sekai-fire/elixir-enet.git", branch: "main"},
+      # Process registry
+      {:gproc, git: "https://github.com/uwiger/gproc.git", branch: "master", override: true},
       # Use aria_patrol_solver for planning
       {:aria_patrol_solver,
        git: "https://github.com/V-Sekai-fire/aria-patrol-solver.git", ref: "2fa9e22"},
