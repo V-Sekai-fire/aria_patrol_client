@@ -26,7 +26,7 @@ defmodule AriaPatrolSolverClient.MixProject do
       {:gproc, git: "https://github.com/uwiger/gproc.git", branch: "master", override: true},
       # Use aria_patrol_solver for planning
       {:aria_patrol_solver,
-       git: "https://github.com/V-Sekai-fire/aria-patrol-solver.git", ref: "2fa9e22"},
+       git: "https://github.com/V-Sekai-fire/aria-patrol-solver.git", branch: "main"},
       # JSON encoding for trajectory export
       {:jason, "~> 1.4"},
       # Code analysis
