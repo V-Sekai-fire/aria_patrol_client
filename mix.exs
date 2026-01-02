@@ -21,7 +21,7 @@ defmodule AriaPatrolSolverClient.MixProject do
   defp deps do
     [
       # ENet DTLS client for network communication
-      {:enet_core, git: "https://github.com/V-Sekai-fire/elixir-enet.git", branch: "main"},
+      {:enet, git: "https://github.com/V-Sekai-fire/elixir-enet.git", branch: "main"},
       # Process registry
       {:gproc, git: "https://github.com/uwiger/gproc.git", branch: "master", override: true},
       # Use aria_patrol_solver for planning
